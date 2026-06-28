@@ -233,6 +233,13 @@ select:focus {
   outline: 2px solid rgba(31, 122, 95, 0.16);
 }
 
+select:disabled {
+  color: var(--muted);
+  background: var(--surface-2);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
 .quick-filters {
   display: flex;
   gap: 8px;
@@ -243,6 +250,45 @@ select:focus {
 
 .quick-filters::-webkit-scrollbar {
   display: none;
+}
+
+.mode-switcher {
+  display: flex;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: 12px;
+  padding: 4px;
+  overflow-x: auto;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  scrollbar-width: none;
+}
+
+.mode-switcher::-webkit-scrollbar {
+  display: none;
+}
+
+.mode-tab {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 7px 11px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  font-size: 0.86rem;
+  font-weight: 850;
+}
+
+.mode-tab:hover,
+.mode-tab:focus-visible,
+.mode-tab.active {
+  color: var(--ink);
+  background: var(--surface);
+  border-color: var(--line);
+  outline: none;
 }
 
 .quick-chip {
@@ -408,6 +454,9 @@ select:focus {
 .work-grid,
 .client-grid,
 .stat-list,
+.board-grid,
+.calendar-grid,
+.summary-grid,
 .form-grid {
   display: grid;
   gap: 10px;
@@ -431,6 +480,10 @@ select:focus {
   grid-column: 1 / -1;
 }
 
+.form-field.is-disabled {
+  color: #7d8985;
+}
+
 .form-actions {
   display: flex;
   flex-wrap: wrap;
@@ -445,6 +498,17 @@ select:focus {
   gap: 12px;
   padding: 12px;
   box-shadow: none;
+}
+
+.task-row.compact {
+  grid-template-columns: 5px minmax(0, 1fr);
+  padding: 10px;
+}
+
+.task-row.compact .task-actions {
+  grid-column: 2;
+  justify-content: flex-start;
+  min-width: 0;
 }
 
 .task-stripe {
@@ -472,6 +536,10 @@ select:focus {
   margin: 0 0 5px;
   font-weight: 850;
   line-height: 1.25;
+}
+
+.task-title.small {
+  font-size: 0.92rem;
 }
 
 .task-next {
@@ -600,6 +668,56 @@ select:focus {
   min-width: 150px;
 }
 
+.task-table {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.task-table table {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+}
+
+.task-table th,
+.task-table td {
+  padding: 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.task-table th {
+  color: var(--muted);
+  background: #fbfcfc;
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.task-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.table-title {
+  display: grid;
+  gap: 4px;
+  min-width: 260px;
+}
+
+.table-title strong {
+  line-height: 1.25;
+}
+
+.table-actions {
+  display: flex;
+  gap: 6px;
+  white-space: nowrap;
+}
+
 .row-actions {
   display: flex;
   flex-wrap: wrap;
@@ -667,6 +785,96 @@ select:focus {
 .work-grid,
 .client-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.board-grid {
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  align-items: start;
+}
+
+.board-column {
+  min-width: 0;
+  padding: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.board-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.board-column-header strong {
+  font-size: 0.92rem;
+}
+
+.board-card-list {
+  display: grid;
+  gap: 8px;
+}
+
+.board-card {
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.board-card .task-meta {
+  margin-top: 7px;
+}
+
+.calendar-grid {
+  grid-template-columns: repeat(5, minmax(170px, 1fr));
+  align-items: start;
+}
+
+.calendar-day {
+  min-width: 0;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.calendar-day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.summary-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.summary-card {
+  min-width: 0;
+  padding: 13px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.summary-card strong,
+.summary-card span {
+  display: block;
+}
+
+.summary-card strong {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.summary-card span {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.88rem;
 }
 
 .work-card,
@@ -797,6 +1005,12 @@ select:focus {
   .content-grid {
     grid-template-columns: 1fr;
   }
+
+  .board-grid,
+  .calendar-grid,
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 680px) {
@@ -827,6 +1041,9 @@ select:focus {
 
   .work-grid,
   .client-grid,
+  .board-grid,
+  .calendar-grid,
+  .summary-grid,
   .form-grid {
     grid-template-columns: 1fr;
   }

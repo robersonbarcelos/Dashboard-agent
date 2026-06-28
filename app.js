@@ -186,6 +186,7 @@ const seedData = {
 
 const state = {
   view: "today",
+  mode: "focus",
   front: "all",
   status: "all",
   quick: "today",
@@ -200,6 +201,14 @@ const viewMeta = {
   investments: ["Investimentos", "Estudo de mercado, backtesting e acompanhamento de trades."],
   time: ["Tempo", "Cronometro simples e historico de registros."],
   analysis: ["Analise", "Leitura semanal de gargalos, carga e produtividade."],
+};
+
+const modeMeta = {
+  focus: ["Hoje", "Execucao limpa do que importa agora."],
+  board: ["Board", "Fluxo visual por status."],
+  list: ["Lista", "Tabela operacional para volume e filtros."],
+  calendar: ["Calendario", "Prazos agrupados por periodo."],
+  summary: ["Resumo", "Leitura executiva de risco, carga e proximas acoes."],
 };
 
 const statusClass = {
@@ -324,6 +333,7 @@ function filteredTasks() {
 function addTask(event) {
   event.preventDefault();
   const form = event.currentTarget;
+  syncRecurrenceField(form);
   const task = {
     id: `T-${Date.now()}`,
     title: form.title.value.trim(),
@@ -355,8 +365,29 @@ function addTask(event) {
   form.priority.value = "Media";
   form.due.value = "Hoje";
   form.taskMode.value = "Pontual";
-  form.recurrence.value = "Diaria";
+  syncRecurrenceField(form);
   render();
+}
+
+function syncRecurrenceField(form) {
+  const taskMode = form?.elements?.taskMode;
+  const recurrence = form?.elements?.recurrence;
+  const recurrenceField = recurrence?.closest(".form-field");
+  if (!taskMode || !recurrence) return;
+
+  const isRecurring = taskMode.value === "Recorrente";
+  recurrence.disabled = !isRecurring;
+  recurrence.required = isRecurring;
+  recurrenceField?.classList.toggle("is-disabled", !isRecurring);
+
+  if (!isRecurring) {
+    recurrence.value = "Nao se aplica";
+    return;
+  }
+
+  if (recurrence.value === "Nao se aplica") {
+    recurrence.value = "Diaria";
+  }
 }
 
 function startTimer(taskId) {
@@ -595,6 +626,195 @@ function renderTaskList(list) {
   return `<div class="task-list">${list.map(taskRow).join("")}</div>`;
 }
 
+function compactTaskCard(task) {
+  const isActive = state.data.activeTimer?.taskId === task.id;
+  return `
+    <article class="board-card">
+      <p class="task-title small">${escapeHtml(task.title)}</p>
+      <div class="task-meta">
+        <span>${escapeHtml(task.front)}</span>
+        <span>${escapeHtml(task.client)}</span>
+        <span>Prazo: ${escapeHtml(task.due)}</span>
+      </div>
+      <p class="task-next">${escapeHtml(task.next)}</p>
+      <div class="task-meta">
+        <span class="chip ${priorityClass[task.priority] || ""}">${escapeHtml(task.priority)}</span>
+        <span class="chip">${escapeHtml(task.taskMode === "Recorrente" ? task.recurrence : "Pontual")}</span>
+      </div>
+      <div class="row-actions" style="margin-top: 8px;">
+        ${task.status === "Concluida"
+          ? `<button class="secondary-action" data-action="reopen" data-task="${task.id}">Reabrir</button>`
+          : `
+            <button class="secondary-action" data-action="start" data-task="${task.id}">${isActive ? "Rodando" : "Iniciar"}</button>
+            <button class="primary-action" data-action="complete" data-task="${task.id}">Concluir</button>
+          `}
+      </div>
+    </article>
+  `;
+}
+
+function renderFocusMode() {
+  const focusTasks = state.data.tasks
+    .filter((task) => ["Atrasada", "Em execucao"].includes(task.status) || task.due === "Hoje")
+    .filter((task) => state.front === "all" || task.front === state.front)
+    .filter((task) => state.status === "all" || task.status === state.status)
+    .sort((a, b) => {
+      const priorityScore = { Alta: 0, Media: 1, Baixa: 2 };
+      const statusScore = { Atrasada: 0, "Em execucao": 1, "A fazer": 2, Aguardando: 3, Concluida: 4 };
+      return (statusScore[a.status] ?? 5) - (statusScore[b.status] ?? 5)
+        || (priorityScore[a.priority] ?? 3) - (priorityScore[b.priority] ?? 3);
+    });
+  const active = state.data.activeTimer ? findTask(state.data.activeTimer.taskId) : null;
+  const activeBlock = active
+    ? `<div class="notice">Rodando agora: <strong>${escapeHtml(active.title)}</strong> | ${minutesToHours(currentTimerMinutes())}</div>`
+    : `<div class="empty-state">Nenhuma tarefa rodando. Inicie uma prioridade quando comecar.</div>`;
+
+  return [
+    panel("Foco do dia", "atrasadas, em execucao e prazo hoje", renderTaskList(focusTasks), "full"),
+    panel("Agora", "cronometro e execucao atual", activeBlock),
+    panel("Adicionar rapido", "entrada manual leve", taskForm()),
+  ].join("");
+}
+
+function renderBoardMode() {
+  const statuses = ["A fazer", "Em execucao", "Aguardando", "Concluida"];
+  const tasks = filteredTasks().filter((task) => task.status !== "Atrasada");
+  const lateTasks = filteredTasks().filter((task) => task.status === "Atrasada");
+  const columns = statuses.map((status) => {
+    const columnTasks = tasks.filter((task) => task.status === status);
+    return `
+      <section class="board-column">
+        <div class="board-column-header">
+          <strong>${status}</strong>
+          <span class="chip">${columnTasks.length}</span>
+        </div>
+        <div class="board-card-list">
+          ${columnTasks.length ? columnTasks.map(compactTaskCard).join("") : `<div class="empty-state">Sem tarefas.</div>`}
+        </div>
+      </section>
+    `;
+  }).join("");
+
+  return [
+    panel("Board operacional", "fluxo simples no estilo Kanban", `<div class="board-grid">${columns}</div>`, "full"),
+    lateTasks.length ? panel("Atrasadas", "fora do fluxo normal", renderTaskList(lateTasks), "full") : "",
+  ].join("");
+}
+
+function renderListMode() {
+  const rows = filteredTasks().map((task) => `
+    <tr>
+      <td>
+        <div class="table-title">
+          <strong>${escapeHtml(task.title)}</strong>
+          <span class="task-meta">${escapeHtml(task.next)}</span>
+        </div>
+      </td>
+      <td>${escapeHtml(task.front)}</td>
+      <td>${escapeHtml(task.client)}</td>
+      <td><span class="chip ${statusClass[task.status] || ""}">${escapeHtml(task.status)}</span></td>
+      <td><span class="chip ${priorityClass[task.priority] || ""}">${escapeHtml(task.priority)}</span></td>
+      <td>${escapeHtml(task.due)}</td>
+      <td>${escapeHtml(task.taskMode === "Recorrente" ? task.recurrence : "Pontual")}</td>
+      <td>${minutesToHours(task.spent)} / ${minutesToHours(task.estimate)}</td>
+      <td>
+        <div class="table-actions">
+          ${task.status === "Concluida"
+            ? `<button class="secondary-action" data-action="reopen" data-task="${task.id}">Reabrir</button>`
+            : `<button class="secondary-action" data-action="start" data-task="${task.id}">Iniciar</button><button class="primary-action" data-action="complete" data-task="${task.id}">Concluir</button>`}
+        </div>
+      </td>
+    </tr>
+  `).join("");
+
+  const table = `
+    <div class="task-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Tarefa</th>
+            <th>Frente</th>
+            <th>Projeto</th>
+            <th>Status</th>
+            <th>Prioridade</th>
+            <th>Prazo</th>
+            <th>Recorrencia</th>
+            <th>Tempo</th>
+            <th>Acao</th>
+          </tr>
+        </thead>
+        <tbody>${rows || `<tr><td colspan="9">Nenhuma tarefa encontrada com os filtros atuais.</td></tr>`}</tbody>
+      </table>
+    </div>
+  `;
+
+  return [
+    panel("Nova tarefa", "entrada manual rapida", taskForm(), "full"),
+    panel("Lista operacional", "volume, status e proximas acoes", table, "full"),
+  ].join("");
+}
+
+function renderCalendarMode() {
+  const buckets = ["Hoje", "Amanha", "Semana", "Sexta", "Sem prazo"];
+  const tasks = filteredTasks();
+  const columns = buckets.map((due) => {
+    const dueTasks = tasks.filter((task) => task.due === due);
+    return `
+      <section class="calendar-day">
+        <div class="calendar-day-header">
+          <strong>${due}</strong>
+          <span class="chip">${dueTasks.length}</span>
+        </div>
+        <div class="board-card-list">
+          ${dueTasks.length ? dueTasks.map(compactTaskCard).join("") : `<div class="empty-state">Livre.</div>`}
+        </div>
+      </section>
+    `;
+  }).join("");
+
+  return panel("Calendario operacional", "prazos agrupados por periodo", `<div class="calendar-grid">${columns}</div>`, "full");
+}
+
+function renderSummaryMode() {
+  const open = state.data.tasks.filter((task) => task.status !== "Concluida").length;
+  const done = state.data.tasks.filter((task) => task.status === "Concluida").length;
+  const late = state.data.tasks.filter((task) => task.status === "Atrasada").length;
+  const waiting = state.data.tasks.filter((task) => task.status === "Aguardando").length;
+  const high = state.data.tasks.filter((task) => task.priority === "Alta" && task.status !== "Concluida").length;
+  const today = state.data.tasks.filter((task) => task.due === "Hoje" && task.status !== "Concluida").length;
+  const cards = `
+    <div class="summary-grid">
+      <article class="summary-card"><strong>${open}</strong><span>Abertas</span></article>
+      <article class="summary-card"><strong>${late}</strong><span>Atrasadas</span></article>
+      <article class="summary-card"><strong>${high}</strong><span>Alta prioridade</span></article>
+      <article class="summary-card"><strong>${today}</strong><span>Com prazo hoje</span></article>
+      <article class="summary-card"><strong>${waiting}</strong><span>Aguardando resposta</span></article>
+      <article class="summary-card"><strong>${done}</strong><span>Concluidas</span></article>
+    </div>
+  `;
+  const critical = state.data.tasks
+    .filter((task) => task.status === "Atrasada" || (task.priority === "Alta" && task.status !== "Concluida"))
+    .slice(0, 6);
+  const next = state.data.tasks
+    .filter((task) => task.status !== "Concluida")
+    .slice(0, 6);
+
+  return [
+    panel("Resumo executivo", "indicadores de decisao", cards, "full"),
+    panel("Pontos criticos", "resolver antes de abrir mais fila", renderTaskList(critical)),
+    panel("Proximas acoes", "fila objetiva", renderTaskList(next)),
+  ].join("");
+}
+
+function renderModeContent() {
+  if (state.mode === "focus") return renderFocusMode();
+  if (state.mode === "board") return renderBoardMode();
+  if (state.mode === "list") return renderListMode();
+  if (state.mode === "calendar") return renderCalendarMode();
+  if (state.mode === "summary") return renderSummaryMode();
+  return renderFocusMode();
+}
+
 function taskForm() {
   return `
     <form id="taskForm" class="form-grid">
@@ -623,6 +843,7 @@ function taskForm() {
       </label>
       <label class="form-field">Recorrencia
         <select name="recurrence">
+          <option value="Nao se aplica">Nao se aplica</option>
           <option>Diaria</option>
           <option>Semanal</option>
           <option>Quinzenal</option>
@@ -847,7 +1068,13 @@ function updateMetrics() {
 }
 
 function bindDynamicEvents() {
-  document.querySelector("#taskForm")?.addEventListener("submit", addTask);
+  const taskFormElement = document.querySelector("#taskForm");
+  if (taskFormElement) {
+    taskFormElement.addEventListener("submit", addTask);
+    taskFormElement.elements.taskMode.addEventListener("change", () => syncRecurrenceField(taskFormElement));
+    syncRecurrenceField(taskFormElement);
+  }
+
   document.querySelectorAll(".update-form").forEach((form) => {
     form.addEventListener("submit", addTaskUpdate);
   });
@@ -876,7 +1103,8 @@ function bindDynamicEvents() {
 }
 
 function render() {
-  const [title, subtitle] = viewMeta[state.view];
+  const modeDrivenView = state.view === "today" || state.view === "tasks";
+  const [title, subtitle] = modeDrivenView ? modeMeta[state.mode] : viewMeta[state.view];
   document.querySelector("#viewTitle").textContent = title;
   document.querySelector("#viewSubtitle").textContent = subtitle;
   updateMetrics();
@@ -890,7 +1118,7 @@ function render() {
     analysis: renderAnalysis,
   };
 
-  document.querySelector("#viewContent").innerHTML = renderers[state.view]();
+  document.querySelector("#viewContent").innerHTML = modeDrivenView ? renderModeContent() : renderers[state.view]();
   bindDynamicEvents();
 }
 
@@ -906,11 +1134,37 @@ function setActiveQuick() {
   });
 }
 
+function setActiveMode() {
+  document.querySelectorAll(".mode-tab[data-mode]").forEach((item) => {
+    item.classList.toggle("active", item.dataset.mode === state.mode);
+  });
+}
+
 document.querySelectorAll(".nav-item").forEach((button) => {
   button.addEventListener("click", () => {
     state.view = button.dataset.view;
-    if (state.view === "today") state.quick = "today";
+    if (state.view === "today") {
+      state.mode = "focus";
+      state.quick = "today";
+    }
+    if (state.view === "tasks") state.mode = "list";
     setActiveNav();
+    setActiveMode();
+    setActiveQuick();
+    render();
+  });
+});
+
+document.querySelectorAll(".mode-tab[data-mode]").forEach((button) => {
+  button.addEventListener("click", () => {
+    state.mode = button.dataset.mode;
+    state.view = "tasks";
+    if (state.mode === "focus") {
+      state.view = "today";
+      state.quick = "today";
+    }
+    setActiveNav();
+    setActiveMode();
     setActiveQuick();
     render();
   });
@@ -949,6 +1203,7 @@ document.querySelector("#statusFilter").addEventListener("change", (event) => {
   render();
 });
 
+setActiveMode();
 render();
 setInterval(() => {
   if (state.data.activeTimer) updateMetrics();
