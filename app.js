@@ -1,4 +1,4 @@
-const STORAGE_KEY = "painel-roberson-v3";
+const STORAGE_KEY = "painel-roberson-v4";
 const DEFAULT_CLIENTS = ["Cliente 1", "Cliente 2", "Cliente 3", "Cliente 4", "Cliente 5", "Cliente 6"];
 const INVESTMENT_BLOCKS = ["Estudar mercado", "Backtesting e analise de setups", "Acompanhamento de trades"];
 
@@ -16,6 +16,16 @@ const seedData = {
       estimate: 90,
       spent: 55,
       next: "Finalizar gancho, CTA e enviar para aprovacao.",
+      taskMode: "Pontual",
+      recurrence: "Nao se aplica",
+      subtasks: [
+        { id: "S-001-1", title: "Definir gancho", done: true },
+        { id: "S-001-2", title: "Escrever roteiro", done: true },
+        { id: "S-001-3", title: "Enviar para aprovacao", done: false },
+      ],
+      updates: [
+        { id: "U-001-1", text: "Gancho revisado; falta CTA final.", status: "Em execucao", createdAt: new Date().toISOString() },
+      ],
       createdAt: new Date().toISOString(),
     },
     {
@@ -30,6 +40,15 @@ const seedData = {
       estimate: 180,
       spent: 130,
       next: "Aguardar aprovacao do primeiro corte.",
+      taskMode: "Pontual",
+      recurrence: "Nao se aplica",
+      subtasks: [
+        { id: "S-002-1", title: "Montar primeiro corte", done: true },
+        { id: "S-002-2", title: "Receber feedback do cliente", done: false },
+      ],
+      updates: [
+        { id: "U-002-1", text: "Primeiro corte enviado; aguardando cliente aprovar.", status: "Aguardando", createdAt: new Date().toISOString() },
+      ],
       createdAt: new Date().toISOString(),
     },
     {
@@ -44,6 +63,14 @@ const seedData = {
       estimate: 120,
       spent: 0,
       next: "Separar temas e ordem de producao.",
+      taskMode: "Recorrente",
+      recurrence: "Semanal",
+      subtasks: [
+        { id: "S-003-1", title: "Listar temas", done: false },
+        { id: "S-003-2", title: "Definir ordem de producao", done: false },
+        { id: "S-003-3", title: "Validar calendario", done: false },
+      ],
+      updates: [],
       createdAt: new Date().toISOString(),
     },
     {
@@ -58,6 +85,10 @@ const seedData = {
       estimate: 40,
       spent: 0,
       next: "Transformar lembretes soltos em lista.",
+      taskMode: "Recorrente",
+      recurrence: "Semanal",
+      subtasks: [],
+      updates: [],
       createdAt: new Date().toISOString(),
     },
     {
@@ -72,6 +103,13 @@ const seedData = {
       estimate: 45,
       spent: 50,
       next: "Registrar leitura principal no diario.",
+      taskMode: "Recorrente",
+      recurrence: "Diaria",
+      subtasks: [
+        { id: "S-005-1", title: "Ler abertura", done: true },
+        { id: "S-005-2", title: "Registrar vies", done: true },
+      ],
+      updates: [],
       createdAt: new Date().toISOString(),
     },
     {
@@ -86,6 +124,14 @@ const seedData = {
       estimate: 120,
       spent: 0,
       next: "Definir amostra, regra de entrada e stop.",
+      taskMode: "Pontual",
+      recurrence: "Nao se aplica",
+      subtasks: [
+        { id: "S-006-1", title: "Definir amostra", done: false },
+        { id: "S-006-2", title: "Rodar amostra", done: false },
+        { id: "S-006-3", title: "Registrar estatistica", done: false },
+      ],
+      updates: [],
       createdAt: new Date().toISOString(),
     },
     {
@@ -100,6 +146,15 @@ const seedData = {
       estimate: 30,
       spent: 15,
       next: "Atualizar status, risco e ponto de invalidacao.",
+      taskMode: "Recorrente",
+      recurrence: "Diaria",
+      subtasks: [
+        { id: "S-007-1", title: "Checar trades abertos", done: false },
+        { id: "S-007-2", title: "Atualizar risco", done: false },
+      ],
+      updates: [
+        { id: "U-007-1", text: "Pendente atualizar risco dos trades em aberto.", status: "Atrasada", createdAt: new Date().toISOString() },
+      ],
       createdAt: new Date().toISOString(),
     },
     {
@@ -114,6 +169,10 @@ const seedData = {
       estimate: 25,
       spent: 0,
       next: "Definir 3 prioridades antes de iniciar producao.",
+      taskMode: "Recorrente",
+      recurrence: "Diaria",
+      subtasks: [],
+      updates: [],
       createdAt: new Date().toISOString(),
     },
   ],
@@ -158,11 +217,31 @@ const priorityClass = {
 function loadData() {
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (stored?.tasks && stored?.timeLogs) return stored;
+    if (stored?.tasks && stored?.timeLogs) return normalizeData(stored);
   } catch {
     localStorage.removeItem(STORAGE_KEY);
   }
-  return structuredClone(seedData);
+  return normalizeData(structuredClone(seedData));
+}
+
+function normalizeData(data) {
+  return {
+    tasks: (data.tasks || []).map(normalizeTask),
+    timeLogs: data.timeLogs || [],
+    activeTimer: data.activeTimer || null,
+  };
+}
+
+function normalizeTask(task) {
+  return {
+    taskMode: "Pontual",
+    recurrence: "Nao se aplica",
+    subtasks: [],
+    updates: [],
+    ...task,
+    subtasks: Array.isArray(task.subtasks) ? task.subtasks : [],
+    updates: Array.isArray(task.updates) ? task.updates : [],
+  };
 }
 
 function saveData() {
@@ -200,6 +279,19 @@ function currentTimerMinutes() {
 
 function slugFront(front) {
   return String(front).replace(/\s+/g, "-");
+}
+
+function subtaskSummary(task) {
+  const total = task.subtasks?.length || 0;
+  const done = task.subtasks?.filter((item) => item.done).length || 0;
+  return { total, done };
+}
+
+function splitLines(value) {
+  return String(value || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
 }
 
 function allClients() {
@@ -244,6 +336,14 @@ function addTask(event) {
     estimate: Number(form.estimate.value) || 30,
     spent: 0,
     next: form.next.value.trim() || "Definir proxima acao.",
+    taskMode: form.taskMode.value,
+    recurrence: form.taskMode.value === "Recorrente" ? form.recurrence.value : "Nao se aplica",
+    subtasks: splitLines(form.subtasks.value).map((title, index) => ({
+      id: `S-${Date.now()}-${index}`,
+      title,
+      done: false,
+    })),
+    updates: [],
     createdAt: new Date().toISOString(),
   };
 
@@ -254,6 +354,8 @@ function addTask(event) {
   form.front.value = "Social Media";
   form.priority.value = "Media";
   form.due.value = "Hoje";
+  form.taskMode.value = "Pontual";
+  form.recurrence.value = "Diaria";
   render();
 }
 
@@ -330,15 +432,110 @@ function duplicateTask(taskId) {
     spent: 0,
     createdAt: new Date().toISOString(),
     completedAt: undefined,
+    subtasks: (task.subtasks || []).map((item, index) => ({ ...item, id: `S-${Date.now()}-${index}`, done: false })),
+    updates: [],
   });
   saveData();
   render();
+}
+
+function toggleSubtask(taskId, subtaskId) {
+  const task = findTask(taskId);
+  if (!task) return;
+  const item = task.subtasks.find((subtask) => subtask.id === subtaskId);
+  if (!item) return;
+  item.done = !item.done;
+  task.updates.unshift({
+    id: `U-${Date.now()}`,
+    text: `${item.done ? "Concluida etapa" : "Reaberta etapa"}: ${item.title}`,
+    status: task.status,
+    createdAt: new Date().toISOString(),
+  });
+  saveData();
+  render();
+}
+
+function addTaskUpdate(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const task = findTask(form.dataset.task);
+  if (!task) return;
+  const text = form.update.value.trim();
+  if (!text) return;
+  task.status = form.status.value;
+  task.next = form.next.value.trim() || task.next;
+  task.updates.unshift({
+    id: `U-${Date.now()}`,
+    text,
+    status: task.status,
+    createdAt: new Date().toISOString(),
+  });
+  saveData();
+  render();
+}
+
+function renderSubtasks(task) {
+  const subtasks = task.subtasks || [];
+  if (!subtasks.length) return "";
+  const { done, total } = subtaskSummary(task);
+  return `
+    <div class="subtask-block">
+      <span class="task-meta">${done}/${total} etapas feitas</span>
+      <div class="subtask-list">
+        ${subtasks.map((item) => `
+          <button class="subtask-pill ${item.done ? "done" : ""}" data-action="toggle-subtask" data-task="${task.id}" data-subtask="${item.id}" type="button">
+            <span>${item.done ? "Feito" : "Aberto"}</span>
+            ${escapeHtml(item.title)}
+          </button>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderUpdates(task) {
+  const updates = task.updates || [];
+  const latest = updates.slice(0, 3);
+  const history = latest.length
+    ? latest.map((update) => `
+      <li>
+        <strong>${escapeHtml(update.status)}</strong>
+        <span>${escapeHtml(update.text)}</span>
+      </li>
+    `).join("")
+    : `<li><span>Nenhuma atualizacao registrada ainda.</span></li>`;
+
+  return `
+    <details class="update-box">
+      <summary>Atualizar andamento (${updates.length})</summary>
+      <form class="update-form" data-task="${task.id}">
+        <label>Status
+          <select name="status">
+            <option ${task.status === "A fazer" ? "selected" : ""}>A fazer</option>
+            <option ${task.status === "Em execucao" ? "selected" : ""}>Em execucao</option>
+            <option ${task.status === "Aguardando" ? "selected" : ""}>Aguardando</option>
+            <option ${task.status === "Concluida" ? "selected" : ""}>Concluida</option>
+            <option ${task.status === "Atrasada" ? "selected" : ""}>Atrasada</option>
+          </select>
+        </label>
+        <label>Proxima acao
+          <input name="next" value="${escapeHtml(task.next)}" placeholder="Ex: aguardar cliente aprovar" />
+        </label>
+        <label class="full">Registro
+          <textarea name="update" required placeholder="Ex: feito primeiro corte, aguardando cliente aprovar"></textarea>
+        </label>
+        <button class="primary-action" type="submit">Salvar andamento</button>
+      </form>
+      <ul class="timeline">${history}</ul>
+    </details>
+  `;
 }
 
 function taskRow(task) {
   const progress = Math.min(100, Math.round(((Number(task.spent) || 0) / Math.max(Number(task.estimate) || 1, 1)) * 100));
   const isActive = state.data.activeTimer?.taskId === task.id;
   const elapsed = isActive ? ` + ${minutesToHours(currentTimerMinutes())} rodando` : "";
+  const { done, total } = subtaskSummary(task);
   const actionButtons = task.status === "Concluida"
     ? `<button class="secondary-action" data-action="reopen" data-task="${task.id}">Reabrir</button>`
     : `
@@ -356,10 +553,15 @@ function taskRow(task) {
           <span>${escapeHtml(task.front)}</span>
           <span>${escapeHtml(task.client)}</span>
           <span>${escapeHtml(task.type)}</span>
+          <span>${escapeHtml(task.taskMode)}</span>
+          ${task.taskMode === "Recorrente" ? `<span>${escapeHtml(task.recurrence)}</span>` : ""}
           <span>Prazo: ${escapeHtml(task.due)}</span>
           <span>${minutesToHours(task.spent)} / ${minutesToHours(task.estimate)}${elapsed}</span>
+          ${total ? `<span>Etapas: ${done}/${total}</span>` : ""}
         </div>
         <p class="task-next">Proxima acao: ${escapeHtml(task.next)}</p>
+        ${renderSubtasks(task)}
+        ${renderUpdates(task)}
         <div class="progress-track" aria-label="Progresso de tempo">
           <div class="progress-bar" style="width: ${progress}%"></div>
         </div>
@@ -413,6 +615,20 @@ function taskForm() {
       <label class="form-field">Tipo
         <input name="type" placeholder="Roteiro, Edicao, Backtesting..." />
       </label>
+      <label class="form-field">Natureza
+        <select name="taskMode">
+          <option>Pontual</option>
+          <option>Recorrente</option>
+        </select>
+      </label>
+      <label class="form-field">Recorrencia
+        <select name="recurrence">
+          <option>Diaria</option>
+          <option>Semanal</option>
+          <option>Quinzenal</option>
+          <option>Mensal</option>
+        </select>
+      </label>
       <label class="form-field">Prazo
         <select name="due">
           <option>Hoje</option>
@@ -435,9 +651,12 @@ function taskForm() {
       <label class="form-field full">Proxima acao
         <textarea name="next" placeholder="Qual e o proximo movimento objetivo?"></textarea>
       </label>
+      <label class="form-field full">Etapas / subtarefas
+        <textarea name="subtasks" placeholder="Uma etapa por linha. Ex:&#10;Separar arquivos&#10;Editar primeira versao&#10;Enviar para aprovacao"></textarea>
+      </label>
       <div class="form-actions">
         <button class="primary-action" type="submit">Adicionar tarefa</button>
-        <span class="task-meta">Salva automaticamente neste navegador.</span>
+        <span class="task-meta">Classifique como pontual ou recorrente antes de salvar.</span>
       </div>
     </form>
   `;
@@ -629,6 +848,9 @@ function updateMetrics() {
 
 function bindDynamicEvents() {
   document.querySelector("#taskForm")?.addEventListener("submit", addTask);
+  document.querySelectorAll(".update-form").forEach((form) => {
+    form.addEventListener("submit", addTaskUpdate);
+  });
 
   document.querySelectorAll("[data-client]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -648,6 +870,7 @@ function bindDynamicEvents() {
       if (action === "complete") completeTask(taskId);
       if (action === "reopen") reopenTask(taskId);
       if (action === "duplicate") duplicateTask(taskId);
+      if (action === "toggle-subtask") toggleSubtask(taskId, button.dataset.subtask);
     });
   });
 }
