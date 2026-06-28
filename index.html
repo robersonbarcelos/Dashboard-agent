@@ -3,81 +3,98 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Dashboard Operacional MessiCr7</title>
+    <title>Painel Operacional Roberson</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="app-shell">
-      <aside class="sidebar" aria-label="Navegação principal">
+      <aside class="sidebar" aria-label="Navegacao principal">
         <div class="brand">
-          <span class="brand-mark">M7</span>
+          <span class="brand-mark">RB</span>
           <div>
-            <strong>MessiCr7</strong>
-            <small>Operação diária</small>
+            <strong>Painel Operacional Roberson</strong>
+            <small>Agenda, clientes, tempo e investimentos</small>
           </div>
         </div>
 
-        <nav class="nav-list" aria-label="Áreas do dashboard">
+        <nav class="nav-list" aria-label="Areas do painel">
           <button class="nav-item active" data-view="today">Hoje</button>
           <button class="nav-item" data-view="tasks">Tarefas</button>
-          <button class="nav-item" data-view="social">Social Media</button>
+          <button class="nav-item" data-view="clients">Clientes</button>
           <button class="nav-item" data-view="investments">Investimentos</button>
           <button class="nav-item" data-view="time">Tempo</button>
-          <button class="nav-item" data-view="stats">Estatísticas</button>
+          <button class="nav-item" data-view="analysis">Analise</button>
         </nav>
 
-        <section class="sidebar-panel">
-          <span class="eyebrow">Tarefa ativa</span>
+        <section class="active-box" aria-live="polite">
+          <span class="label">Em andamento</span>
           <strong id="activeTaskTitle">Nenhuma tarefa ativa</strong>
-          <small id="activeTaskMeta">Use o Telegram para iniciar uma tarefa.</small>
+          <small id="activeTaskMeta">Quando iniciar pelo Telegram, aparece aqui.</small>
         </section>
       </aside>
 
       <main class="main">
         <header class="topbar">
-          <div>
-            <span class="eyebrow">Dashboard operacional</span>
+          <div class="title-block">
+            <span class="label">Operacao diaria</span>
             <h1 id="viewTitle">Hoje</h1>
+            <p id="viewSubtitle">Prioridades, atrasos e proximas acoes.</p>
           </div>
-          <div class="topbar-actions">
-            <select id="frontFilter" aria-label="Filtrar por frente">
-              <option value="all">Todas as frentes</option>
-              <option value="Social Media">Social Media</option>
-              <option value="Pessoal">Pessoal</option>
-              <option value="Investimentos">Investimentos</option>
-              <option value="Agenda">Agenda</option>
-            </select>
-            <select id="statusFilter" aria-label="Filtrar por status">
-              <option value="all">Todos os status</option>
-              <option value="A fazer">A fazer</option>
-              <option value="Em execução">Em execução</option>
-              <option value="Aguardando">Aguardando</option>
-              <option value="Concluída">Concluída</option>
-              <option value="Atrasada">Atrasada</option>
-            </select>
+
+          <div class="filter-panel" aria-label="Filtros">
+            <label>
+              Frente
+              <select id="frontFilter">
+                <option value="all">Todas</option>
+                <option value="Social Media">Social Media</option>
+                <option value="Pessoal">Pessoal</option>
+                <option value="Investimentos">Investimentos</option>
+                <option value="Agenda">Agenda</option>
+              </select>
+            </label>
+            <label>
+              Status
+              <select id="statusFilter">
+                <option value="all">Todos</option>
+                <option value="A fazer">A fazer</option>
+                <option value="Em execucao">Em execucao</option>
+                <option value="Aguardando">Aguardando</option>
+                <option value="Concluida">Concluida</option>
+                <option value="Atrasada">Atrasada</option>
+              </select>
+            </label>
           </div>
         </header>
 
-        <section class="metric-grid" aria-label="Métricas principais">
-          <article class="metric-card">
+        <section class="quick-filters" aria-label="Atalhos de filtro">
+          <button class="quick-chip active" data-quick="today">Hoje</button>
+          <button class="quick-chip" data-quick="late">Atrasadas</button>
+          <button class="quick-chip" data-quick="week">Semana</button>
+          <button class="quick-chip" data-quick="social">Social</button>
+          <button class="quick-chip" data-quick="investments">Investimentos</button>
+          <button class="quick-chip" data-quick="clear">Limpar</button>
+        </section>
+
+        <section class="metric-grid" aria-label="Resumo operacional">
+          <article class="metric-card signal-open">
             <small>Abertas</small>
             <strong id="metricOpen">0</strong>
-            <span>Tarefas em aberto</span>
+            <span>tarefas pedindo acompanhamento</span>
           </article>
-          <article class="metric-card">
+          <article class="metric-card signal-risk">
             <small>Atrasadas</small>
             <strong id="metricLate">0</strong>
-            <span>Precisam de ação</span>
+            <span>risco de prazo</span>
           </article>
-          <article class="metric-card">
+          <article class="metric-card signal-time">
             <small>Hoje</small>
-            <strong id="metricTodayHours">0h</strong>
-            <span>Tempo registrado</span>
+            <strong id="metricTodayHours">0min</strong>
+            <span>tempo registrado</span>
           </article>
-          <article class="metric-card">
+          <article class="metric-card signal-week">
             <small>Semana</small>
-            <strong id="metricWeekHours">0h</strong>
-            <span>Volume operacional</span>
+            <strong id="metricWeekHours">0min</strong>
+            <span>carga operacional</span>
           </article>
         </section>
 
